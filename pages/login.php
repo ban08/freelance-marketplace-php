@@ -1,8 +1,7 @@
 <?php 
 // pages/login.php
-session_start();
-require_once __DIR__ . '/../scripts/db.php';  // inclui conexão PDO ($pdo)
-require_once __DIR__ . '/../templates/bootstrap.php';
+require_once __DIR__ . '/../templates/bootstrap.php';  
+require_once __DIR__ . '/../scripts/db.php';   // ajusta para ../scripts/db.php ou ../db/db.php conforme o teu layout
 
 // Inicializa variável para mensagem de erro
 $erro = "";
@@ -19,7 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erro = "Email inválido.";
     } else {
         // Prepara e executa a query de seleção do utilizador por email
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt = $pdo->prepare("
+            SELECT 
+              id,
+              name     AS nome,
+              is_admin AS tipo,
+              password
+            FROM users 
+            WHERE email = ?
+        ");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -29,10 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
 
             // Credenciais válidas -> guardar dados na sessão e redirecionar
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_nome'] = $user['nome'];
-            $_SESSION['user_tipo'] = $user['tipo'];
-            header("Location: /pages/dashboard.php");
+            $_SESSION['user'] = [
+                'id'   => $user['id'],
+                'nome' => $user['nome'],
+                'tipo' => $user['tipo']
+            ];
+            // caminho relativo dentro de /pages
+            header("Location: dashboard.php");
             exit;
         } else {
             $erro = "Email ou password incorretos.";

@@ -1,6 +1,10 @@
 <?php
 // bootstrap.php
-session_start();
+
+// 🛡️ Só starta se ainda não houver sessão ativa
+if (session_status() === PHP_SESSION_NONE) {  
+    session_start();
+}
 
 // Define the INCLUDES_DIR constant (change the path as needed)
 define('INCLUDES_DIR', __DIR__ . '/includes');

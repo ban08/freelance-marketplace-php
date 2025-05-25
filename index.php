@@ -1,9 +1,8 @@
 <?php
 require_once __DIR__ . '/templates/bootstrap.php'; 
-session_start();
 
-// Opcional: Redirecionar utilizadores autenticados diretamente para o dashboard
-if (isset($_SESSION['user'])) {
+// Só redireciona se houver sessão E não vier o parâmetro skip=1
+if (!isset($_GET['skip']) && isset($_SESSION['user'])) {
     header("Location: pages/dashboard.php");
     exit;
 }
@@ -24,7 +23,6 @@ if (isset($_SESSION['user'])) {
     <div class="hero-content">
       <h1>Encontre os melhores freelancers para o seu projeto</h1>
       <p>Plataforma académica de contratação de freelancers.</p>
-      <a href="pages/login.php" class="btn btn-primario">Começar</a>
     </div>
   </section>
 

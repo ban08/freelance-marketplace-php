@@ -1,67 +1,50 @@
-<?php 
+<?php
 require_once __DIR__ . '/../templates/bootstrap.php';
-require __DIR__ . '/../templates/header.php'; 
-require_once __DIR__ . '/../scripts/db.php';  // garante $pdo ativo
-
-$erro = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Obter e limpar os dados
-    $nome     = trim($_POST['nome']);
-    $email    = trim($_POST['email']);
-    $password = $_POST['password'];
-    $tipo     = $_POST['tipo'] ?? '';
-
-    // Validações simples
-    if (!$nome || !$email || !$password || !$tipo) {
-        $erro = "Por favor preencha todos os campos.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $erro = "Email inválido.";
-    } elseif ($tipo !== 'cliente' && $tipo !== 'freelancer') {
-        $erro = "Tipo de utilizador inválido.";
-    } else {
-        // Verificar duplicação de email
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            $erro = "Já existe uma conta com este email.";
-        }
-    }
-
-    // Se não há erros até agora, proceder com inserção
-    if (empty($erro)) {
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare(
-          "INSERT INTO users (username, name, email, password, is_admin)
-           VALUES (?, ?, ?, ?, 0)"
-        );
-        // 2. Executa com ordem certa
-        $stmt->execute([$nome, $nome, $email, $hash]);
-
-        // Redirecionar para login (ou fazer login automático)
-        header("Location: login.php?registrado=1");
-        exit;
-    }
-}
 ?>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registar – ltw07g06</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <?php include __DIR__ . '/../templates/header.php'; ?>
 
-<div class="register-container">
-  <h2>Criar Nova Conta</h2>
-  <?php if($erro): ?>
-    <p class="erro"><?= htmlspecialchars($erro) ?></p>
-  <?php endif; ?>
-  <form method="POST" action="register.php">
-    <label>Nome: <input type="text" name="nome" value="<?= htmlspecialchars($nome ?? '') ?>" required></label><br>
-    <label>Email: <input type="email" name="email" value="<?= htmlspecialchars($email ?? '') ?>" required></label><br>
-    <label>Password: <input type="password" name="password" required></label><br>
-    <label>Tipo de Utilizador:
-      <select name="tipo">
-        <option value="cliente" <?= (isset($tipo)&&$tipo=='cliente')?'selected':''; ?>>Cliente</option>
-        <option value="freelancer" <?= (isset($tipo)&&$tipo=='freelancer')?'selected':''; ?>>Freelancer</option>
-      </select>
-    </label><br>
-    <button type="submit">Registar</button>
-  </form>
-  <p>Já tem conta? <a href="login.php">Inicie sessão aqui</a>.</p>
-</div>
+  <main class="register-page">
+    <div class="register-container">
+      <h2>Criar Nova Conta</h2>
+      <?php if (!empty($erro)): ?>
+        <div class="erro"><?= htmlspecialchars($erro) ?></div>
+      <?php endif; ?>
+      <form method="POST" action="register.php" class="form-register">
+        <label for="nome">Nome:</label>
+        <input type="text" id="nome" name="nome"
+               value="<?= htmlspecialchars($nome ?? '') ?>" required>
 
-<?php require '/../templates/footer.php'; ?>
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email"
+               value="<?= htmlspecialchars($email ?? '') ?>" required>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+
+        <label for="tipo">Tipo de Utilizador:</label>
+        <select id="tipo" name="tipo" required>
+          <option value="">– Selecione –</option>
+          <option value="cliente" <?= ($tipo ?? '')==='cliente'?'selected':'' ?>>Cliente</option>
+          <option value="freelancer" <?= ($tipo ?? '')==='freelancer'?'selected':'' ?>>Freelancer</option>
+        </select>
+
+        <button type="submit">Registar</button>
+      </form>
+      <p class="alt-action">
+        Já tem conta? <a href="login.php">Inicie sessão aqui</a>.
+      </p>
+    </div>
+  </main>
+
+  <?php include __DIR__ . '/../templates/footer.php'; ?>
+</body>
+</html>
