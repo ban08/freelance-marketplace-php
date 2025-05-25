@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../templates/bootstrap.php';
 
-// Se não estiver logado, redireciona para login
 if (empty($_SESSION['user'])) {
     header('Location: login.php');
     exit;
@@ -9,14 +8,25 @@ if (empty($_SESSION['user'])) {
 
 $userId = $_SESSION['user']['id'];
 
-// Buscar dados completos do perfil
+// SELECT apenas as colunas que sabemos que existem
 $stmt = $pdo->prepare("
-    SELECT username, name, email, profile_picture, bio, joined_date
-      FROM users
-     WHERE id = ?
+  SELECT 
+    username,
+    name         AS full_name,
+    email,
+    COALESCE(bio, '')             AS bio,
+    COALESCE(profile_picture, '') AS profile_picture,
+    joined_date
+  FROM users
+  WHERE id = ?
 ");
 $stmt->execute([$userId]);
 $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$profile) {
+    echo "<p>Perfil não encontrado.</p>";
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt">
@@ -31,17 +41,23 @@ $profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
   <main class="profile-page">
     <div class="profile-container">
-      <?php if (!empty($profile['profile_picture'])): ?>
-        <img src="<?= htmlspecialchars($profile['profile_picture']) ?>"
-             alt="Foto de Perfil" class="profile-photo">
+      <?php if ($profile['profile_picture']): ?>
+        <img src="/<?= htmlspecialchars($profile['profile_picture']) ?>"
+             alt="Foto de Perfil"
+             class="profile-photo">
       <?php else: ?>
         <div class="profile-photo-placeholder"></div>
       <?php endif; ?>
 
-      <h2><?= htmlspecialchars($profile['name']) ?></h2>
-      <p class="profile-email"><?= htmlspecialchars($profile['email']) ?></p>
+      <h2>
+        <?= htmlspecialchars($profile['full_name']) ?: 
+            htmlspecialchars($_SESSION['user']['nome']) ?>
+      </h2>
+      <p class="profile-email">
+        <?= htmlspecialchars($profile['email']) ?>
+      </p>
 
-      <?php if (!empty($profile['bio'])): ?>
+      <?php if ($profile['bio'] !== ''): ?>
       <section class="profile-section">
         <h3>Sobre mim</h3>
         <p><?= nl2br(htmlspecialchars($profile['bio'])) ?></p>
@@ -51,13 +67,18 @@ $profile = $stmt->fetch(PDO::FETCH_ASSOC);
       <section class="profile-section">
         <h3>Detalhes da Conta</h3>
         <ul>
-          <li><strong>Nome de Utilizador:</strong> <?= htmlspecialchars($profile['username']) ?></li>
+          <li><strong>Nome de Utilizador:</strong>
+              <?= htmlspecialchars($profile['username']) ?></li>
           <li><strong>Registado em:</strong>
               <?= date('d/m/Y', strtotime($profile['joined_date'])) ?></li>
         </ul>
       </section>
 
-      <p><a href="edit_profile.php" class="btn-primary">Editar Perfil</a></p>
+      <p>
+        <a href="edit_profile.php" class="btn-primary">
+          Editar Perfil
+        </a>
+      </p>
     </div>
   </main>
 

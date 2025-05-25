@@ -2,104 +2,121 @@
 require_once __DIR__ . '/../templates/bootstrap.php';
 require_once __DIR__ . '/../templates/header.php';
 
-// Obter e validar ID do serviço da query string
+// pegar ID do serviço
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
-    echo "<p>ID de serviço inválido.</p>";
-    require_once __DIR__ . '/../templates/footer.php';
+    echo "<p>Serviço inválido.</p>";
     exit;
 }
 
-// Buscar serviço e freelancer
-$stmt = $pdo->prepare("SELECT s.*, u.nome AS freelancer_nome, u.email AS freelancer_email
-                       FROM servicos s 
-                       JOIN utilizadores u ON s.utilizador_id = u.id
-                       WHERE s.id = ?");
+// buscar serviço + freelancer nas tabelas corretas
+$stmt = $pdo->prepare("
+  SELECT 
+    s.*,
+    u.name  AS freelancer_nome,
+    u.email AS freelancer_email
+  FROM services s
+  JOIN users    u ON s.freelancer_id = u.id
+  WHERE s.id = ?
+");
 $stmt->execute([$id]);
-$serv = $stmt->fetch(PDO::FETCH_ASSOC);
+$serv = $stmt->fetch();
 if (!$serv) {
-    echo "<h2>Serviço não encontrado.</h2>";
-    require_once __DIR__ . '/../templates/footer.php';
+    echo "<p>Serviço não encontrado.</p>";
     exit;
 }
 
-// (Opcional) Buscar avaliações do serviço atual
-$stmt2 = $pdo->prepare("SELECT a.rating, a.comentario, a.data, u.nome AS cliente_nome 
-                        FROM avaliacoes a 
-                        JOIN utilizadores u ON a.cliente_id = u.id
-                        WHERE a.servico_id = ?
-                        ORDER BY a.data DESC");
-$stmt2->execute([$id]);
-$reviews = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+// puxar primeira imagem (se existir)
+$imgStmt = $pdo->prepare("
+  SELECT image_path
+    FROM service_images
+   WHERE service_id = ?
+   ORDER BY display_order
+   LIMIT 1
+");
+$imgStmt->execute([$id]);
+$img = $imgStmt->fetchColumn() ?: 'img/default.png';
 
-// Calcular média de avaliações
-$media = 0;
-$totalReviews = count($reviews);
-if ($totalReviews > 0) {
-    $soma = 0;
-    foreach($reviews as $rev) {
-        $soma += $rev['rating'];
-    }
-    $media = round($soma / $totalReviews, 1);
+// buscar avaliações, etc… (mantém seu código de reviews)
+$stmtRev = $pdo->prepare("
+  SELECT rv.rating, rv.comment, rv.created_at AS date, u.name AS client_name
+    FROM reviews rv
+    JOIN users u ON rv.client_id = u.id
+   WHERE rv.service_id = ?
+   ORDER BY date DESC
+");
+$stmtRev->execute([$id]);
+$reviews = $stmtRev->fetchAll();
+
+// —–– Can the current client review? —––
+$canReview    = false;
+if (!empty($_SESSION['user']) && $_SESSION['user']['tipo'] === 'cliente') {
+    $clientId    = $_SESSION['user']['id'];
+    // did they complete an order?
+    $stmtOrd     = $pdo->prepare("
+      SELECT 1 FROM orders 
+       WHERE service_id = ? 
+         AND client_id = ? 
+         AND status = 'completed'
+    ");
+    $stmtOrd->execute([$id, $clientId]);
+    $didComplete = (bool)$stmtOrd->fetch();
+    // have they already reviewed?
+    $stmtChk     = $pdo->prepare("
+      SELECT 1 FROM reviews 
+       WHERE service_id = ? 
+         AND client_id = ?
+    ");
+    $stmtChk->execute([$id, $clientId]);
+    $didReview   = (bool)$stmtChk->fetch();
+    $canReview   = $didComplete && !$didReview;
 }
 
-// Verificar se o utilizador pode avaliar
-$jaAvaliou = false;
-$usuarioLogado = $_SESSION['user']['id'] ?? null; // Ajuste conforme a sua lógica de sessão
-if ($usuarioLogado) {
-    $stmtCheck = $pdo->prepare("SELECT id FROM avaliacoes WHERE servico_id = ? AND cliente_id = ?");
-    $stmtCheck->execute([$id, $usuarioLogado]);
-    $jaAvaliou = (bool) $stmtCheck->fetch();
-}
-
-// Verificar se o logado é um cliente que comprou este serviço
-$comprou = false;
-if ($usuarioLogado && ($_SESSION['user']['tipo'] === 'cliente')) {
-    $stmtEncomenda = $pdo->prepare("SELECT id FROM encomendas 
-                                    WHERE servico_id = ? 
-                                      AND cliente_id = ? 
-                                      AND status = 'concluida'");
-    $stmtEncomenda->execute([$id, $usuarioLogado]);
-    $comprou = (bool) $stmtEncomenda->fetch();
-}
-
-// Processar envio de nova avaliação
-if (isset($_POST['submit_review']) && $usuarioLogado && ($_SESSION['user']['tipo'] === 'cliente')) {
-    $rating = intval($_POST['rating'] ?? 0);
-    $comentario = trim($_POST['comentario'] ?? '');
-    if ($rating >= 1 && $rating <= 5 && $comprou && !$jaAvaliou) {
-        $stmtInsert = $pdo->prepare("INSERT INTO avaliacoes(servico_id, cliente_id, rating, comentario, data) 
-                                     VALUES (?, ?, ?, ?, datetime('now'))");
-        $stmtInsert->execute([$id, $usuarioLogado, $rating, $comentario]);
-        // Redirecionar para recarregar e evitar reenvio do form
+// —–– Handle review POST —––
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rating']) && $canReview) {
+    $rating  = intval($_POST['rating']);
+    $comment = trim($_POST['comment'] ?? '');
+    if ($rating >= 1 && $rating <= 5) {
+        $ins = $pdo->prepare("
+          INSERT INTO reviews (client_id, service_id, rating, comment)
+          VALUES (?, ?, ?, ?)
+        ");
+        $ins->execute([$clientId, $id, $rating, $comment]);
+        // Redirecionar para evitar reenvio do formulário
         header("Location: services.php?id=$id");
         exit;
     }
 }
 ?>
 <div class="service-detail-page">
-  <h2><?= htmlspecialchars($serv['titulo']) ?></h2>
+  <h2><?= htmlspecialchars($serv['title']) ?></h2>
   <div class="service-detail">
     <div class="service-info">
-      <img src="<?= htmlspecialchars($serv['imagem']) ?>" alt="Imagem do serviço">
-      <p><?= nl2br(htmlspecialchars($serv['descricao'])) ?></p>
-      <p><strong>Preço:</strong> €<?= htmlspecialchars($serv['preco']) ?></p>
-      <p><strong>Duração:</strong> <?= htmlspecialchars($serv['duracao']) ?> horas</p>
+      <img src="/<?= htmlspecialchars($img) ?>" 
+           alt="Imagem do serviço" style="max-width:100%">
+      <p><?= nl2br(htmlspecialchars($serv['description'])) ?></p>
+      <p><strong>Preço:</strong> €<?= number_format($serv['base_price'],2) ?></p>
+      <p><strong>Entrega:</strong> <?= intval($serv['delivery_time_days']) ?> dias</p>
     </div>
     <aside class="service-aside">
       <h3>Freelancer</h3>
       <p><?= htmlspecialchars($serv['freelancer_nome']) ?></p>
-      <p>Email: <a href="mailto:<?= htmlspecialchars($serv['freelancer_email']) ?>">
-                  <?= htmlspecialchars($serv['freelancer_email']) ?></a></p>
-      <button onclick="alert('Funcionalidade de contratação a implementar')">
-        Contratar
-      </button>
+      <p>Email: 
+        <a href="mailto:<?= htmlspecialchars($serv['freelancer_email']) ?>">
+          <?= htmlspecialchars($serv['freelancer_email']) ?>
+        </a>
+      </p>
+      <?php if (!empty($_SESSION['user']) && $_SESSION['user']['tipo']==='cliente'): ?>
+        <a href="checkout.php?service=<?= $id ?>" class="btn-primary">
+          Contratar
+        </a>
+      <?php endif; ?>
     </aside>
   </div>
 
   <!-- Média e lista de avaliações -->
   <div class="service-reviews">
-    <?php if ($totalReviews > 0): ?>
+    <?php if (count($reviews) > 0): ?>
       <p class="servico-rating">🌟 <strong><?= $media ?></strong> de 5 (<?= $totalReviews ?> avaliações)</p>
     <?php else: ?>
       <p class="servico-rating">Este serviço ainda não tem avaliações.</p>
@@ -137,6 +154,15 @@ if (isset($_POST['submit_review']) && $usuarioLogado && ($_SESSION['user']['tipo
   </div>
   <?php endif; ?>
 
-  <p><a href="services.php">← Voltar aos serviços</a></p>
+  <!-- Botão para solicitar pedido personalizado -->
+  <?php if (!empty($_SESSION['user']) && $_SESSION['user']['tipo']==='cliente'): ?>
+    <a href="request_custom_order.php?service=<?= $id ?>"
+       class="btn-primary"
+       style="margin-top:1em; display:inline-block;">
+      📩 Solicitar Pedido Personalizado
+    </a>
+  <?php endif; ?>
+
+  <p><a href="browse.php" class="btn-primary">← Voltar à Explorar</a></p>
 </div>
-<?php require_once __DIR__ . '/../templates/footer.php'; ?>
+<?php require __DIR__.'/../templates/footer.php'; ?>

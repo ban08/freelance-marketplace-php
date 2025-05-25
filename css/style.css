@@ -779,3 +779,63 @@ footer {
 .chat-input input {
   padding: 0.4em;
 }
+
+/* ==== Browse Toolbar ==== */
+.search-toolbar {
+  background: #fff;
+  padding: 1em;
+  margin: 1.5em auto;
+  max-width: 900px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.form-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1em;
+  align-items: end;
+}
+.filter-item label {
+  display: block;
+  margin-bottom: 0.3em;
+  font-size: 0.9em;
+  color: #555;
+}
+.filter-item input,
+.filter-item select {
+  width: 100%;
+  padding: 0.5em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+.filter-actions {
+  display: flex;
+  gap: 0.5em;
+}
+.filter-actions .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+.btn-clear {
+  display: inline-block;
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  text-decoration: underline;
+  padding: 0;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+.btn-clear:hover {
+  color: #009428;
+}
+@media (max-width: 600px) {
+  .form-filtros {
+    grid-template-columns: 1fr;
+  }
+  .filter-actions {
+    justify-content: space-between;
+  }
+}
