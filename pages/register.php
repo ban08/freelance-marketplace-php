@@ -1,6 +1,7 @@
 <?php 
 require_once __DIR__ . '/../templates/bootstrap.php';
 require __DIR__ . '/../templates/header.php'; 
+require_once __DIR__ . '/../scripts/db.php';  // garante $pdo ativo
 
 $erro = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erro = "Tipo de utilizador inválido.";
     } else {
         // Verificar duplicação de email
-        $stmt = $pdo->prepare("SELECT id FROM utilizadores WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
             $erro = "Já existe uma conta com este email.";
@@ -29,8 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Se não há erros até agora, proceder com inserção
     if (empty($erro)) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO utilizadores (nome, email, password, tipo) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$nome, $email, $hash, $tipo]);
+        $stmt = $pdo->prepare(
+          "INSERT INTO users (username, name, email, password, is_admin)
+           VALUES (?, ?, ?, ?, 0)"
+        );
+        // 2. Executa com ordem certa
+        $stmt->execute([$nome, $nome, $email, $hash]);
 
         // Redirecionar para login (ou fazer login automático)
         header("Location: login.php?registrado=1");

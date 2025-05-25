@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erro = "Email inválido.";
     } else {
         // Prepara e executa a query de seleção do utilizador por email
-        $stmt = $pdo->prepare("SELECT * FROM utilizadores WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit">Entrar</button>
     </form>
 
-    <p>Ainda não tem conta? <a href="#">Registe-se</a></p>  <!-- Link de exemplo -->
+    <p>Ainda não tem conta? <a href="register.php">Registe-se</a></p>  <!-- Link de exemplo -->
   </main>
   <?php include __DIR__ . '/../templates/footer.php'; ?>  <!-- Rodapé do site -->
 </body>
