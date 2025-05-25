@@ -6,7 +6,8 @@ if (empty($_SESSION['user']) || $_SESSION['user']['tipo']!=='cliente') {
 
 $clientId  = $_SESSION['user']['id'];
 $serviceId = filter_input(INPUT_GET,'service',FILTER_VALIDATE_INT);
-if (!$serviceId) {
+$freelancerId = filter_input(INPUT_GET,'freelancer',FILTER_VALIDATE_INT);
+if (!$serviceId && !$freelancerId) {
     header('Location: browse.php'); exit;
 }
 
@@ -61,6 +62,18 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         exit;
     }
 }
+
+if ($freelancerId) {
+  // you came from client_inquiries; offer choice of service
+  $svcStmt = $pdo->prepare("
+    SELECT id, title 
+      FROM services 
+     WHERE freelancer_id = ? 
+       AND status='active'
+  ");
+  $svcStmt->execute([$freelancerId]);
+  $myServices = $svcStmt->fetchAll();
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt">
@@ -77,8 +90,18 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       <div class="erro"><?= htmlspecialchars($erro) ?></div>
     <?php endif; ?>
     <form method="post" class="form-login">
-      <label>Serviço:</label>
-      <input type="text" disabled value="<?= htmlspecialchars($sv['title']) ?>">
+      <?php if (!empty($myServices)): ?>
+        <label for="service">Serviço:</label>
+        <select id="service" name="service" required>
+          <option value="">– escolha –</option>
+          <?php foreach($myServices as $s):?>
+          <option value="<?= $s['id'] ?>"
+            <?= $s['id']==$serviceId?'selected':''?>>
+            <?= htmlspecialchars($s['title'])?>
+          </option>
+          <?php endforeach;?>
+        </select>
+      <?php endif; ?>
 
       <label for="price">Preço (€):</label>
       <input id="price" name="price" type="number" step="0.01"

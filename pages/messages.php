@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../templates/bootstrap.php';
-if (empty($_SESSION['user']) || $_SESSION['user']['tipo']!=='freelancer') {
+// replace the strict freelancer check with this
+if (empty($_SESSION['user'])
+  || ! in_array($_SESSION['user']['tipo'], ['freelancer','cliente'], true)
+) {
     header('Location: dashboard.php');
     exit;
 }

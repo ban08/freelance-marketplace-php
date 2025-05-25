@@ -6,26 +6,41 @@ require_once __DIR__ . '/../scripts/db.php';   // ajusta para ../scripts/db.php 
 // Inicializa variável para mensagem de erro
 $erro = "";
 $email = "";  // Inicializa o campo email para preencher o formulário automaticamente
+$password = "";
 
 // Processamento do formulário de login quando submetido
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email    = trim($_POST['email'] ?? "");
-    $password = $_POST['password'] ?? "";
+    $email    = trim($_POST['email']    ?? "");
+    $password =       $_POST['password'] ?? "";
 
     if ($email === "" || $password === "") {
         $erro = "Por favor, preencha todos os campos.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) { // apenas aceita email valido
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) && $email !== 'admin') {
+        // allow "admin" as a special case
         $erro = "Email inválido.";
     } else {
-        // Prepara e executa a query de seleção do utilizador por email
+        // 1) Built-in admin shortcut
+        if ($email === 'admin@gmail.com' && $password === 'admin') {
+            session_regenerate_id(true);
+            $_SESSION['user'] = [
+                'id'       => 0,
+                'nome'     => 'Administrador',
+                'tipo'     => 'cliente',   // tipo can be anything; is_admin is what matters
+                'is_admin' => true
+            ];
+            header("Location: dashboard.php");
+            exit;
+        }
+
+        // 2) Regular DB lookup
         $stmt = $pdo->prepare("
-            SELECT 
-              id,
-              name     AS nome,
-              tipo,               -- agora trazemos o tipo: 'cliente' ou 'freelancer'
-              password
-            FROM users 
-            WHERE email = ?
+            SELECT id,
+                   name   AS nome,
+                   tipo,
+                   is_admin,
+                   password
+              FROM users 
+             WHERE email = ?
         ");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
@@ -37,9 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Credenciais válidas -> guardar dados na sessão e redirecionar
             $_SESSION['user'] = [
-                'id'   => $user['id'],
-                'nome' => $user['nome'],
-                'tipo' => $user['tipo']
+                'id'       => $user['id'],
+                'nome'     => $user['nome'],
+                'tipo'     => $user['tipo'],
+                'is_admin' => (bool)$user['is_admin']
             ];
             // caminho relativo dentro de /pages
             header("Location: dashboard.php");
