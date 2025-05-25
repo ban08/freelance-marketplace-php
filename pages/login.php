@@ -22,13 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             SELECT 
               id,
               name     AS nome,
-              is_admin AS tipo,
+              tipo,               -- agora trazemos o tipo: 'cliente' ou 'freelancer'
               password
             FROM users 
             WHERE email = ?
         ");
         $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user = $stmt->fetch();
 
         // Verifica se utilizador existe e se a password está correta
         if ($user && password_verify($password, $user['password'])) {

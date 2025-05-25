@@ -599,3 +599,116 @@ footer {
 .alt-action a:hover {
   text-decoration: underline;
 }
+
+/* ==== New Service Form ==== */
+.dashboard-page form {
+  max-width: 600px;
+  margin: 1em auto;
+  background: #fff;
+  padding: 1.5em;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.dashboard-page form label {
+  margin-top: 0.8em;
+  display: block;
+  font-weight: 500;
+}
+.dashboard-page form input[type="text"],
+.dashboard-page form input[type="number"],
+.dashboard-page form select,
+.dashboard-page form textarea,
+.dashboard-page form input[type="file"] {
+  width: 100%;
+  padding: 0.6em;
+  margin-top: 0.3em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.dashboard-page form textarea {
+  resize: vertical;
+}
+.dashboard-page form .btn-primary {
+  margin-top: 1em;
+}
+
+/* ==== Dashboard Actions (Freelancer) ==== */
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+  gap: 1em;
+  margin: 1.5em 0;
+}
+.action-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1em;
+  text-align: center;
+  text-decoration: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s;
+}
+.action-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ==== Manage Services Table ==== */
+.manage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.manage-table th,
+.manage-table td {
+  padding: 0.75em;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.manage-table th {
+  background: #f9f9f9;
+}
+.manage-table form {
+  display: inline;
+}
+.manage-table button {
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0.3em 0.6em;
+  cursor: pointer;
+  margin-right: 0.3em;
+}
+.manage-table button:hover {
+  background: #e0e0e0;
+}
+.manage-table a {
+  margin-right: 0.5em;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.manage-table a:hover {
+  text-decoration: underline;
+}
+
+/* Make remove-btn truly inline/link-style (no box) */
+.remove-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  color: #d00;
+}
+.remove-btn:hover {
+  color: #a00;
+}
+.remove-btn:focus {
+  outline: none;
+}
