@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
                 <a href="new_service.php" class="action-card">➕ Listar Novo Serviço</a>
                 <a href="manage_services.php" class="action-card">🛠️ Gerir Serviços</a>
                 <a href="inquiries.php" class="action-card">✉️ Consultas</a>
+                <a href="orders.php" class="action-card">📦 Encomendas</a>
             </div>
 
             <section class="dashboard-section">

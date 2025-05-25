@@ -9,69 +9,57 @@ if (empty($_SESSION['user'])) {
 
 $userId = $_SESSION['user']['id'];
 $erro    = "";
-$sucesso = "";
 
 // buscar dados atuais
-$stmt = $pdo->prepare("SELECT username, name, email FROM users WHERE id = ?");
+$stmt = $pdo->prepare("
+  SELECT username, name, email, bio, profile_picture
+    FROM users
+   WHERE id = ?
+");
 $stmt->execute([$userId]);
-$dados = $stmt->fetch(PDO::FETCH_ASSOC);
+$dados = $stmt->fetch();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username        = trim($_POST['username'] ?? "");
     $name            = trim($_POST['name']     ?? "");
     $email           = trim($_POST['email']    ?? "");
-    $newPassword     = $_POST['new_password']      ?? "";
-    $confirmPassword = $_POST['confirm_password']  ?? "";
+    $bio              = trim($_POST['bio']      ?? "");
 
     // validações
     if (!$username || !$name || !$email) {
         $erro = "Nome de utilizador, nome e email são obrigatórios.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $erro = "Email inválido.";
-    } else {
-        // unicidade username
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
-        $stmt->execute([$username, $userId]);
-        if ($stmt->fetch()) {
-            $erro = "Esse nome de utilizador já está em uso.";
-        }
-        // unicidade email
-        if (!$erro) {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
-            $stmt->execute([$email, $userId]);
-            if ($stmt->fetch()) {
-                $erro = "Esse email já está registado.";
-            }
-        }
     }
 
-    // se trocar password, valida confirmação
-    if (!$erro && $newPassword) {
-        if (strlen($newPassword) < 6) {
-            $erro = "A password deve ter pelo menos 6 caracteres.";
-        } elseif ($newPassword !== $confirmPassword) {
-            $erro = "A confirmação da password não coincide.";
+    // tratar upload da foto
+    $photoPath = $dados['profile_picture'];
+    if (empty($erro) && !empty($_FILES['profile_picture']['tmp_name'])) {
+        $u = $_FILES['profile_picture'];
+        if ($u['error'] === UPLOAD_ERR_OK) {
+            $dir = __DIR__ . '/../uploads/profiles/';
+            if (!is_dir($dir)) mkdir($dir,0755,true);
+            $ext  = pathinfo($u['name'], PATHINFO_EXTENSION);
+            $file = uniqid('pf_').".{$ext}";
+            if (move_uploaded_file($u['tmp_name'], $dir.$file)) {
+                $photoPath = "uploads/profiles/{$file}";
+            }
         }
     }
 
     if (!$erro) {
         // montar UPDATE
-        $fields = ["username = ?", "name = ?", "email = ?"];
-        $params = [$username, $name, $email];
-        if ($newPassword) {
-            $fields[]  = "password = ?";
-            $params[]  = password_hash($newPassword, PASSWORD_DEFAULT);
-        }
-        $params[] = $userId;
-
-        $sql = "UPDATE users SET " . implode(", ", $fields) . " WHERE id = ?";
+        $sql  = "UPDATE users SET username=?, name=?, email=?, bio=?, profile_picture=? WHERE id=?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute([
+            $username, $name, $email,
+            $bio,      $photoPath,
+            $userId
+        ]);
 
         // atualizar sessão
         $_SESSION['user']['nome'] = $name;
 
-        // 🚀 redirecionar para o perfil
         header('Location: profile.php');
         exit;
     }
@@ -93,28 +81,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if ($erro): ?>
       <div class="erro"><?= htmlspecialchars($erro) ?></div>
-    <?php elseif ($sucesso): ?>
-      <div class="alert alert-success"><?= htmlspecialchars($sucesso) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="edit_profile.php" class="form-login">
+    <form method="post" action="edit_profile.php" enctype="multipart/form-data" class="form-login">
       <label for="username">Nome de Utilizador:</label>
-      <input type="text" id="username" name="username" required
-             value="<?= htmlspecialchars($dados['username'] ?? '') ?>">
+      <input id="username" name="username" required
+             value="<?= htmlspecialchars($dados['username']) ?>">
 
       <label for="name">Nome Completo:</label>
-      <input type="text" id="name" name="name" required
-             value="<?= htmlspecialchars($dados['name'] ?? '') ?>">
+      <input id="name" name="name" required
+             value="<?= htmlspecialchars($dados['name']) ?>">
 
       <label for="email">Email:</label>
-      <input type="email" id="email" name="email" required
-             value="<?= htmlspecialchars($dados['email'] ?? '') ?>">
+      <input id="email" type="email" name="email" required
+             value="<?= htmlspecialchars($dados['email']) ?>">
 
-      <label for="new_password">Nova Password: <small>(deixe em branco para manter)</small></label>
-      <input type="password" id="new_password" name="new_password">
+      <label for="bio">Biografia:</label>
+      <textarea id="bio" name="bio" rows="4"><?= htmlspecialchars($dados['bio']) ?></textarea>
 
-      <label for="confirm_password">Confirmar Password:</label>
-      <input type="password" id="confirm_password" name="confirm_password">
+      <label for="profile_picture">Foto de Perfil:</label>
+      <?php if ($dados['profile_picture']): ?>
+        <img src="../<?= htmlspecialchars($dados['profile_picture']) ?>"
+             alt="Atual" style="max-width:100px; display:block; margin-bottom:0.5em;">
+      <?php endif; ?>
+      <input id="profile_picture" type="file" name="profile_picture" accept="image/*">
 
       <button type="submit">Guardar Alterações</button>
     </form>
