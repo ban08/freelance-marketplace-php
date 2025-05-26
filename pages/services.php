@@ -1,142 +1,177 @@
 <?php 
 require_once __DIR__ . '/../templates/bootstrap.php';
-require_once __DIR__ . '/../templates/header.php';
 
-// Obter e validar ID do serviço da query string
+// pegar ID do serviço
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
-    echo "<p>ID de serviço inválido.</p>";
-    require_once __DIR__ . '/../templates/footer.php';
+    echo "<p>Serviço inválido.</p>";
     exit;
 }
 
-// Buscar serviço e freelancer
-$stmt = $pdo->prepare("SELECT s.*, u.nome AS freelancer_nome, u.email AS freelancer_email
-                       FROM servicos s 
-                       JOIN utilizadores u ON s.utilizador_id = u.id
-                       WHERE s.id = ?");
+// buscar serviço + freelancer
+$stmt = $pdo->prepare("
+  SELECT 
+    s.*,
+    u.name  AS freelancer_nome,
+    u.email AS freelancer_email
+  FROM services s
+  JOIN users    u ON s.freelancer_id = u.id
+  WHERE s.id = ?
+");
 $stmt->execute([$id]);
-$serv = $stmt->fetch(PDO::FETCH_ASSOC);
+$serv = $stmt->fetch();
 if (!$serv) {
-    echo "<h2>Serviço não encontrado.</h2>";
-    require_once __DIR__ . '/../templates/footer.php';
+    echo "<p>Serviço não encontrado.</p>";
     exit;
 }
 
-// (Opcional) Buscar avaliações do serviço atual
-$stmt2 = $pdo->prepare("SELECT a.rating, a.comentario, a.data, u.nome AS cliente_nome 
-                        FROM avaliacoes a 
-                        JOIN utilizadores u ON a.cliente_id = u.id
-                        WHERE a.servico_id = ?
-                        ORDER BY a.data DESC");
-$stmt2->execute([$id]);
-$reviews = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+// puxar primeira imagem
+$imgStmt = $pdo->prepare("
+  SELECT image_path
+    FROM service_images
+   WHERE service_id = ?
+   ORDER BY display_order
+   LIMIT 1
+");
+$imgStmt->execute([$id]);
+$img = $imgStmt->fetchColumn() ?: 'img/default.png';
 
-// Calcular média de avaliações
-$media = 0;
-$totalReviews = count($reviews);
-if ($totalReviews > 0) {
-    $soma = 0;
-    foreach($reviews as $rev) {
-        $soma += $rev['rating'];
-    }
-    $media = round($soma / $totalReviews, 1);
+// buscar avaliações
+$stmtRev = $pdo->prepare("
+  SELECT rv.rating, rv.comment, rv.created_at AS date, u.name AS client_name
+    FROM reviews rv
+    JOIN users u ON rv.client_id = u.id
+   WHERE rv.service_id = ?
+   ORDER BY date DESC
+");
+$stmtRev->execute([$id]);
+$reviews = $stmtRev->fetchAll();
+
+// verificar se cliente pode avaliar
+$canReview = false;
+if (!empty($_SESSION['user']) && $_SESSION['user']['tipo'] === 'cliente') {
+    $clientId = $_SESSION['user']['id'];
+
+    // corrigido: usar fetchColumn() no statement, não no PDO
+    $stmtOrd = $pdo->prepare("
+      SELECT 1
+        FROM orders
+       WHERE service_id = ?
+         AND client_id = ?
+         AND status = 'completed'
+    ");
+    $stmtOrd->execute([$id, $clientId]);
+    $didComplete = (bool) $stmtOrd->fetchColumn();
+
+    $stmtChk = $pdo->prepare("
+      SELECT 1
+        FROM reviews
+       WHERE service_id = ?
+         AND client_id = ?
+    ");
+    $stmtChk->execute([$id, $clientId]);
+    $didReview = (bool) $stmtChk->fetchColumn();
+
+    $canReview = $didComplete && !$didReview;
 }
 
-// Verificar se o utilizador pode avaliar
-$jaAvaliou = false;
-$usuarioLogado = $_SESSION['user']['id'] ?? null; // Ajuste conforme a sua lógica de sessão
-if ($usuarioLogado) {
-    $stmtCheck = $pdo->prepare("SELECT id FROM avaliacoes WHERE servico_id = ? AND cliente_id = ?");
-    $stmtCheck->execute([$id, $usuarioLogado]);
-    $jaAvaliou = (bool) $stmtCheck->fetch();
-}
-
-// Verificar se o logado é um cliente que comprou este serviço
-$comprou = false;
-if ($usuarioLogado && ($_SESSION['user']['tipo'] === 'cliente')) {
-    $stmtEncomenda = $pdo->prepare("SELECT id FROM encomendas 
-                                    WHERE servico_id = ? 
-                                      AND cliente_id = ? 
-                                      AND status = 'concluida'");
-    $stmtEncomenda->execute([$id, $usuarioLogado]);
-    $comprou = (bool) $stmtEncomenda->fetch();
-}
-
-// Processar envio de nova avaliação
-if (isset($_POST['submit_review']) && $usuarioLogado && ($_SESSION['user']['tipo'] === 'cliente')) {
-    $rating = intval($_POST['rating'] ?? 0);
-    $comentario = trim($_POST['comentario'] ?? '');
-    if ($rating >= 1 && $rating <= 5 && $comprou && !$jaAvaliou) {
-        $stmtInsert = $pdo->prepare("INSERT INTO avaliacoes(servico_id, cliente_id, rating, comentario, data) 
-                                     VALUES (?, ?, ?, ?, datetime('now'))");
-        $stmtInsert->execute([$id, $usuarioLogado, $rating, $comentario]);
-        // Redirecionar para recarregar e evitar reenvio do form
-        header("Location: services.php?id=$id");
-        exit;
-    }
+// tratar POST de avaliação
+if ($_SERVER['REQUEST_METHOD']==='POST' && $canReview) {
+  $rating = intval($_POST['rating']);
+  if ($rating>=1 && $rating<=5) {
+    $pdo->prepare("
+      INSERT INTO reviews (client_id, service_id, rating, comment)
+      VALUES (?,?,?,?)
+    ")->execute([$clientId, $id, $rating, '']); // no comment any more
+    header("Location: services.php?id=$id");
+    exit;
+  }
 }
 ?>
-<div class="service-detail-page">
-  <h2><?= htmlspecialchars($serv['titulo']) ?></h2>
-  <div class="service-detail">
-    <div class="service-info">
-      <img src="<?= htmlspecialchars($serv['imagem']) ?>" alt="Imagem do serviço">
-      <p><?= nl2br(htmlspecialchars($serv['descricao'])) ?></p>
-      <p><strong>Preço:</strong> €<?= htmlspecialchars($serv['preco']) ?></p>
-      <p><strong>Duração:</strong> <?= htmlspecialchars($serv['duracao']) ?> horas</p>
-    </div>
-    <aside class="service-aside">
-      <h3>Freelancer</h3>
-      <p><?= htmlspecialchars($serv['freelancer_nome']) ?></p>
-      <p>Email: <a href="mailto:<?= htmlspecialchars($serv['freelancer_email']) ?>">
-                  <?= htmlspecialchars($serv['freelancer_email']) ?></a></p>
-      <button onclick="alert('Funcionalidade de contratação a implementar')">
-        Contratar
-      </button>
-    </aside>
-  </div>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title><?= htmlspecialchars($serv['title']) ?> – ltw07g06</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <?php include __DIR__ . '/../templates/header.php'; ?>
 
-  <!-- Média e lista de avaliações -->
-  <div class="service-reviews">
-    <?php if ($totalReviews > 0): ?>
-      <p class="servico-rating">🌟 <strong><?= $media ?></strong> de 5 (<?= $totalReviews ?> avaliações)</p>
-    <?php else: ?>
-      <p class="servico-rating">Este serviço ainda não tem avaliações.</p>
+  <main class="service-detail-page">
+    <div class="service-detail">
+      <div class="service-info">
+        <img src="/<?= htmlspecialchars($img) ?>" alt="Imagem do serviço">
+        <h1><?= htmlspecialchars($serv['title']) ?></h1>
+        <p><?= nl2br(htmlspecialchars($serv['description'])) ?></p>
+        <ul>
+          <li><strong>Preço:</strong> €<?= number_format($serv['base_price'],2) ?></li>
+          <li><strong>Entrega:</strong> <?= intval($serv['delivery_time_days']) ?> dias</li>
+        </ul>
+      </div>
+      <aside class="service-aside">
+        <h3>Freelancer</h3>
+        <p><?= htmlspecialchars($serv['freelancer_nome']) ?></p>
+        <p>Email: 
+          <a href="mailto:<?= htmlspecialchars($serv['freelancer_email']) ?>">
+            <?= htmlspecialchars($serv['freelancer_email']) ?>
+          </a>
+        </p>
+
+        <?php if (!empty($_SESSION['user']) && $_SESSION['user']['tipo']==='cliente'): ?>
+          <a href="checkout.php?service=<?= $id ?>" class="btn-primary">
+            Contratar
+          </a>
+          <!-- new message button -->
+          <a href="messages.php?client=<?= $serv['freelancer_id'] ?>"
+             class="btn-secondary"
+             style="margin-left:0.5em;">
+            💬 Enviar Mensagem
+          </a>
+        <?php endif; ?>
+      </aside>
+    </div>
+
+    <section class="service-reviews">
+      <h2>Avaliações</h2>
+      <?php if ($reviews): ?>
+        <?php foreach($reviews as $r): ?>
+        <div class="review">
+          <p>⭐ <?= $r['rating'] ?> – <?= htmlspecialchars($r['client_name']) ?></p>
+          <?php if ($r['comment']): ?>
+            <blockquote><?= nl2br(htmlspecialchars($r['comment'])) ?></blockquote>
+          <?php endif; ?>
+          <small><?= date('d/m/Y H:i',strtotime($r['date'])) ?></small>
+        </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <p>Nenhuma avaliação ainda.</p>
+      <?php endif; ?>
+    </section>
+
+    <?php if ($canReview): ?>
+    <section class="review-form">
+      <h2>Deixe sua avaliação</h2>
+      <form method="post">
+        <label for="rating">Nota:</label>
+        <select id="rating" name="rating" required>
+          <option value="">– selecione –</option>
+          <?php for($i=5;$i>=1;$i--): ?>
+            <option value="<?= $i ?>"><?= $i ?>★</option>
+          <?php endfor; ?>
+        </select>
+
+        <button type="submit" class="btn-primary">Enviar Avaliação</button>
+      </form>
+    </section>
     <?php endif; ?>
 
-    <h3>Avaliações dos Clientes</h3>
-    <?php foreach($reviews as $rev): ?>
-      <div class="review">
-        <p class="review-rating"><strong>Nota:</strong> <?= $rev['rating'] ?>/5</p>
-        <p class="review-comment">"<?= htmlspecialchars($rev['comentario']) ?>"</p>
-        <p class="review-meta">por <strong><?= htmlspecialchars($rev['cliente_nome']) ?></strong> em 
-                               <?= date('d/m/Y', strtotime($rev['data'])) ?></p>
-      </div>
-    <?php endforeach; ?>
-  </div>
+    <p class="dashboard-return">
+      <a href="browse.php" class="btn-primary">← Voltar à Explorar</a>
+    </p>
+  </main>
 
-  <!-- Formulário de avaliação, se aplicável -->
-  <?php if ($usuarioLogado && ($_SESSION['user']['tipo'] === 'cliente') && $comprou && !$jaAvaliou): ?>
-  <div class="review-form">
-    <h3>Deixe a sua Avaliação</h3>
-    <form method="POST">
-      <label>Classificação:</label>
-      <select name="rating" required>
-        <option value="">--Escolha--</option>
-        <option value="5">5 – Excelente</option>
-        <option value="4">4 – Bom</option>
-        <option value="3">3 – Médio</option>
-        <option value="2">2 – Fraco</option>
-        <option value="1">1 – Terrível</option>
-      </select><br>
-      <label>Comentário:</label><br>
-      <textarea name="comentario" rows="3" maxlength="500"></textarea><br>
-      <button type="submit" name="submit_review">Enviar Avaliação</button>
-    </form>
-  </div>
-  <?php endif; ?>
-
-  <p><a href="services.php">← Voltar aos serviços</a></p>
-</div>
-<?php require_once __DIR__ . '/../templates/footer.php'; ?>
+  <?php include __DIR__ . '/../templates/footer.php'; ?>
+</body>
+</html>

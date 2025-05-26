@@ -1,32 +1,64 @@
 <?php 
 // pages/login.php
-session_start();
-require_once __DIR__ . '/../scripts/db.php';  // inclui conexão PDO ($db)
-require_once __DIR__ . '/../templates/bootstrap.php';
+require_once __DIR__ . '/../templates/bootstrap.php';  
+require_once __DIR__ . '/../scripts/db.php';   // ajusta para ../scripts/db.php ou ../db/db.php conforme o teu layout
 
 // Inicializa variável para mensagem de erro
 $erro = "";
+$email = "";  // Inicializa o campo email para preencher o formulário automaticamente
+$password = "";
 
 // Processamento do formulário de login quando submetido
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email    = trim($_POST['email'] ?? "");       // obtem email do formulário
-    $password = $_POST['password'] ?? "";
+    $email    = trim($_POST['email']    ?? "");
+    $password =       $_POST['password'] ?? "";
 
     if ($email === "" || $password === "") {
         $erro = "Por favor, preencha todos os campos.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) && $email !== 'admin') {
+        // allow "admin" as a special case
+        $erro = "Email inválido.";
     } else {
-        // Prepara e executa query de seleção do utilizador por email
-        $stmt = $pdo->prepare("SELECT * FROM utilizadores WHERE email = ?");
+        // 1) Built-in admin shortcut
+        if ($email === 'admin@gmail.com' && $password === 'admin') {
+            session_regenerate_id(true);
+            $_SESSION['user'] = [
+                'id'       => 0,
+                'nome'     => 'Administrador',
+                'tipo'     => 'cliente',   // tipo can be anything; is_admin is what matters
+                'is_admin' => true
+            ];
+            header("Location: dashboard.php");
+            exit;
+        }
+
+        // 2) Regular DB lookup
+        $stmt = $pdo->prepare("
+            SELECT id,
+                   name   AS nome,
+                   tipo,
+                   is_admin,
+                   password
+              FROM users 
+             WHERE email = ?
+        ");
         $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user = $stmt->fetch();
 
         // Verifica se utilizador existe e se a password está correta
         if ($user && password_verify($password, $user['password'])) {
+            // Segurança extra: protege contra session fixation
+            session_regenerate_id(true);
+
             // Credenciais válidas -> guardar dados na sessão e redirecionar
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_nome'] = $user['nome'];
-            $_SESSION['user_tipo'] = $user['tipo'];
-            header("Location: /pages/dashboard.php");
+            $_SESSION['user'] = [
+                'id'       => $user['id'],
+                'nome'     => $user['nome'],
+                'tipo'     => $user['tipo'],
+                'is_admin' => (bool)$user['is_admin']
+            ];
+            // caminho relativo dentro de /pages
+            header("Location: dashboard.php");
             exit;
         } else {
             $erro = "Email ou password incorretos.";
@@ -42,22 +74,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-  <?php include __DIR__ . '/../templates/header.php'; ?>  <!-- Cabeçalho com logo e nav -->
+  <?php include __DIR__ . '/../templates/header.php'; ?>  <!-- Cabeçalho com logo e navegação -->
   <main class="login-page">
     <h2>Iniciar Sessão</h2>
+
     <?php if ($erro): ?>
       <div class="erro"><?php echo htmlspecialchars($erro); ?></div>
     <?php endif; ?>
+
     <form method="post" action="login.php" class="form-login">
       <label for="email">Email:</label>
-      <input type="email" id="email" name="email" required>
+      <!-- Campo repopulado em caso de erro -->
+      <input type="email" id="email" name="email" required 
+             value="<?php echo htmlspecialchars($email); ?>">
 
       <label for="password">Password:</label>
       <input type="password" id="password" name="password" required>
 
       <button type="submit">Entrar</button>
     </form>
-    <p>Ainda não tem conta? <a href="#">Registe-se</a></p>  <!-- Link de exemplo para página de registo -->
+
+    <p>Ainda não tem conta? <a href="register.php">Registe-se</a></p>  <!-- Link de exemplo -->
   </main>
   <?php include __DIR__ . '/../templates/footer.php'; ?>  <!-- Rodapé do site -->
 </body>
