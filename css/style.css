@@ -5,6 +5,7 @@
   box-sizing: border-box;
 }
 
+
 /* Paleta de cores e estilos adicionais */
 :root {
   --color-primary: #00b22d;  /* verde Fiverr */
@@ -693,11 +694,65 @@ footer {
   text-decoration: underline;
 }
 
+.manage-services{
+  display: inline-block;
+}
+
+form.manage-services{
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  border-radius: 0.3em;
+  background: #fcfcfc;
+  border: 1px solid #ccc;
+}
+
+button.manage-services{
+  background: transparent;
+  border: none;
+  padding: 0 0.4em;
+  margin: 0;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+a.manage-services{
+  background: transparent;
+  border: none;
+  padding: 0 0.4em;
+  margin: 0;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.remove-form{
+  display: inline-block;
+}
+
+form.remove-form{
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  border-radius: 0.3em;
+  background: #fcfcfc;
+  border: 1px solid #ccc;
+}
+
+form.remove-form:hover {
+  background: #d00;
+  border-color: #d00;
+}
+
+
 /* Make remove-btn truly inline/link-style (no box) */
 .remove-btn {
   background: transparent;
   border: none;
-  padding: 0;
+  padding: 0 0.4em;
   margin: 0;
   box-shadow: none;
   outline: none;
@@ -707,10 +762,7 @@ footer {
   color: #d00;
 }
 .remove-btn:hover {
-  color: #a00;
-}
-.remove-btn:focus {
-  outline: none;
+  color: #fcfcfc;
 }
 
 /* ==== Inquiries & Messages ==== */

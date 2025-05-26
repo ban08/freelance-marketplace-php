@@ -10,22 +10,24 @@ $userId = $_SESSION['user']['id'];
 
 // SELECT apenas as colunas que sabemos que existem
 $stmt = $pdo->prepare("
-  SELECT 
-    username,
-    name         AS full_name,
-    email,
-    COALESCE(bio, '')             AS bio,
-    COALESCE(profile_picture, '') AS profile_picture,
-    joined_date
-  FROM users
-  WHERE id = ?
+SELECT 
+  username,
+  name         AS full_name,
+  email,
+  tipo,
+  COALESCE(bio, '')             AS bio,
+  COALESCE(profile_picture, '') AS profile_picture,
+  joined_date
+FROM users
+WHERE id = ?
 ");
+
 $stmt->execute([$userId]);
 $profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$profile) {
     echo "<p>Perfil não encontrado.</p>";
-    exit;
+    exit; 
 }
 ?>
 <!DOCTYPE html>

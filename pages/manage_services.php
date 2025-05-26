@@ -71,19 +71,20 @@ $services = $stmt->fetchAll();
               <td><?= intval($sv['delivery_time_days']) ?></td>
               <td><?= $sv['status'] === 'active' ? 'Ativo' : 'Pausado' ?></td>
               <td>
-                <form method="post" style="display:inline">
+                <form method="post" class='manage-services'>
                   <input type="hidden" name="service_id" value="<?= $sv['id'] ?>">
                   <?php if ($sv['status'] === 'active'): ?>
-                    <button type="submit" name="action" value="pause">⏸ Pausar</button>
+                    <button type="submit" name="action" value="pause" class='manage-services'>⏸ Pausar</button>
                   <?php else: ?>
-                    <button type="submit" name="action" value="activate">▶️ Ativar</button>
+                    <button type="submit" name="action" value="activate" class='manage-services'>▶️ Ativar</button>
                   <?php endif; ?>
                 </form>
-                <a href="edit_service.php?id=<?= $sv['id'] ?>">✏️ Editar</a>
-                <form method="post" style="display:inline" 
+                <a class='manage-services' href="edit_service.php?id=<?= $sv['id'] ?>">✏️ Editar</a>
+                <form method="post" 
+                       class='manage-services'
                       onsubmit="return confirm('Remover serviço?');">
                   <input type="hidden" name="service_id" value="<?= $sv['id'] ?>">
-                  <button type="submit" name="action" value="delete">🗑 Remover</button>
+                  <button type="submit" name="action" value="delete" class='manage-services'>🗑 Remover</button>
                 </form>
               </td>
             </tr>

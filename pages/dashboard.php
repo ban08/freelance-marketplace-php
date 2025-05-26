@@ -60,8 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
                             <li>
                                 <?= htmlspecialchars($sv['titulo']) ?> – €<?= htmlspecialchars($sv['preco']) ?> |
                                 <?= $sv['ativo'] ? 'Ativo' : 'Inativo' ?>
-                                [<a href="edit_service.php?id=<?= $sv['id'] ?>">Editar</a> |
-                                <form method="post" style="display:inline">
+                                [ <a href="edit_service.php?id=<?= $sv['id' ] ?>">Editar</a> |
+                                <form class="remove-form" method="post">
                                     <input type="hidden" name="service_id" value="<?= $sv['id'] ?>">
                                     <button type="submit"
                                             name="action" value="delete_service"
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
                                             onclick="return confirm('Tem a certeza?')">
                                         Remover
                                     </button>
-                                </form>]
+                                </form> ]
                             </li>
                         <?php endforeach; ?>
                     </ul>
