@@ -59,4 +59,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <p>Já tem conta? <a href="login.php">Inicie sessão aqui</a>.</p>
 </div>
 
-<?php require '/../templates/footer.php'; ?>
+<?php require __DIR__ . '/../templates/footer.php'; ?>
