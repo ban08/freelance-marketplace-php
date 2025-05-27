@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initHeroTypingEffect();
 });
 
-// Scroll animations module
+// Scroll animations modulep
 function initScrollAnimations() {
     const observerOptions = {
         threshold: 0.1,

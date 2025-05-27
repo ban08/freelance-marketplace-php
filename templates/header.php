@@ -19,7 +19,6 @@ if (session_status() === PHP_SESSION_NONE) {
           <li><a href="/pages/client_inquiries.php">Mensagens</a></li>
         <?php endif; ?>
         <?php if ($_SESSION['user']['tipo'] === 'freelancer'): ?>
-          <li><a href="/pages/inquiries.php">Consultas</a></li>
         <?php endif; ?>
         <li><a href="/pages/dashboard.php">Dashboard</a></li>
         <li><a href="/pages/profile.php">Perfil</a></li>
