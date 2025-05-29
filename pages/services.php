@@ -13,9 +13,11 @@ $stmt = $pdo->prepare("
   SELECT 
     s.*,
     u.name  AS freelancer_nome,
-    u.email AS freelancer_email
+    u.email AS freelancer_email,
+    c.name  AS category
   FROM services s
-  JOIN users    u ON s.freelancer_id = u.id
+  JOIN users      u ON s.freelancer_id = u.id
+  LEFT JOIN categories c ON s.category_id = c.id
   WHERE s.id = ?
 ");
 $stmt->execute([$id]);
@@ -34,7 +36,7 @@ $imgStmt = $pdo->prepare("
    LIMIT 1
 ");
 $imgStmt->execute([$id]);
-$img = $imgStmt->fetchColumn() ?: 'img/default.png';
+$img = $imgStmt->fetchColumn() ?: 'img/default-service.jpg';
 
 // buscar avaliações
 $stmtRev = $pdo->prepare("
@@ -106,8 +108,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $canReview) {
       <div class="container">
         <div class="service-hero-content">
           <div class="service-image-container">
-            <img src="/<?= htmlspecialchars($img) ?>" alt="Imagem do serviço" class="service-main-image">
-            <div class="service-image-overlay"></div>
+            <img src="../<?= htmlspecialchars($img) ?>" alt="Imagem do serviço" class="service-main-image">
           </div>
           <div class="service-hero-info">
             <div class="service-breadcrumb">
@@ -121,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $canReview) {
             <div class="service-meta">
               <div class="service-price">
                 <i class="fas fa-euro-sign"></i>
-                <span class="price-amount"><?= number_format($serv['base_price'],2) ?></span>
+                <span class="price-amount">€<?= number_format($serv['base_price'],2) ?></span>
               </div>
               <div class="service-delivery">
                 <i class="fas fa-clock"></i>
@@ -180,16 +181,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $canReview) {
               <h3><i class="fas fa-list-check"></i> Resumo do Serviço</h3>
               <div class="summary-items">
                 <div class="summary-item">
-                  <div class="summary-label">Categoria</div>
-                  <div class="summary-value"><?= htmlspecialchars($serv['category']) ?></div>
-                </div>
-                <div class="summary-item">
                   <div class="summary-label">Preço Base</div>
                   <div class="summary-value price">€<?= number_format($serv['base_price'],2) ?></div>
                 </div>
                 <div class="summary-item">
                   <div class="summary-label">Tempo de Entrega</div>
                   <div class="summary-value"><?= intval($serv['delivery_time_days']) ?> dias</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-label">Status</div>
+                  <div class="summary-value"><?= ucfirst($serv['status']) ?></div>
                 </div>
               </div>
             </div>
@@ -225,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && $canReview) {
         <div class="reviews-grid">
           <?php if ($reviews): ?>
             <?php foreach($reviews as $r): ?>
-            <div class="review-card" data-aos="fade-up">
+            <div class="review-card">
               <div class="review-header">
                 <div class="reviewer-info">
                   <div class="reviewer-avatar">
